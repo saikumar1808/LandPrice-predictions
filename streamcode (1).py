@@ -1,16 +1,14 @@
 # ===============================
 # Imports
 # ===============================
+import os
 import numpy as np
 import pandas as pd
 import joblib
+import gdown
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
-
-import requests
-import pickle
-import gdown
 
 
 # ===============================
@@ -21,6 +19,14 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+st.set_page_config(
+    page_title="Land Price Prediction",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Force light theme for all users
+st._config.set_option("theme.base", "light")
 
 # ===============================
 # Custom CSS
@@ -128,16 +134,17 @@ hr {
 }
 </style>
 """, unsafe_allow_html=True)
+
 # ===============================
 # Load Data & Pipeline
 # ===============================
 inpdata = pd.read_csv('final_land_price_65k.csv')
-file_id = "1zfX0BnLglQzZbRuOIQrM0jCtJqAM8ozl"
-url = f"https://drive.google.com/uc?id={file_id}"
 
-gdown.download(url, "model.pkl", quiet=False)
+@st.cache_resource
+def load_model():
+    return joblib.load("landprice.pkl")
 
-pipeline = joblib.load("model.pkl")
+pipeline = load_model()
 
 # Extract components
 model = pipeline["model"]
@@ -315,7 +322,7 @@ elif page == "🏡 Prediction":
 
             st.markdown("---")
              
-              # ── 2. PRICE PER SQFT ANALYSIS ───────────────────
+            # ── 2. PRICE PER SQFT ANALYSIS ───────────────────
             st.markdown('<div class="section-badge">📊 Price per Sqft Analysis</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Current Price/sqft", f"₹{current_price:,.2f}")
@@ -324,7 +331,6 @@ elif page == "🏡 Prediction":
             m4.metric("ROI %", f"{roi:,.2f}%")
 
             st.markdown("<br>", unsafe_allow_html=True)
-
 
             # ── 1. TOTAL LAND VALUE ───────────────────────────
             st.markdown('<div class="section-badge">💎 Total Land Valuation</div>', unsafe_allow_html=True)
@@ -358,7 +364,6 @@ elif page == "🏡 Prediction":
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-           
             # ── 3. CHARTS ROW ─────────────────────────────────
             chart_col1, chart_col2 = st.columns([1, 1])
 
@@ -401,7 +406,6 @@ elif page == "🏡 Prediction":
             with chart_col2:
                 st.markdown('<div class="section-badge">📈 Price Projection</div>', unsafe_allow_html=True)
 
-                # Interpolate a simple projection
                 years = [2024, 2025, 2026]
                 prices_sqft = [current_price, (current_price + predicted_price) / 2, predicted_price]
                 total_prices = [p * land_area for p in prices_sqft]
@@ -459,7 +463,6 @@ elif page == "🏡 Prediction":
                     icon=folium.Icon(color="green", icon="home", prefix="fa")
                 ).add_to(m)
 
-                # City center circle
                 folium.Circle(
                     [lat, lon], radius=dist_city * 1000,
                     color="#00e5a0", fill=True, fill_opacity=0.05,
@@ -469,7 +472,6 @@ elif page == "🏡 Prediction":
                 st_folium(m, width="100%", height=380, returned_objects=[])
 
             except ImportError:
-                # Fallback: Plotly map
                 coords = get_city_coords(city)
                 fig_map = go.Figure(go.Scattermapbox(
                     lat=[coords[0]], lon=[coords[1]],
